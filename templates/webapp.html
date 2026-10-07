@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { background-color: #0f172a; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding: 15px; margin: 0; }
+        .stx-header { text-align: center; padding-bottom: 15px; border-bottom: 1px solid #1e293b; margin-bottom: 20px; }
+        .stx-title { font-size: 20px; font-weight: 800; color: #38bdf8; margin: 0; letter-spacing: 1px;}
+        .card { background: #1e293b; border-radius: 16px; padding: 18px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border-left: 5px solid #10b981; }
+        .match-title { font-size: 18px; font-weight: 700; color: #f8fafc; margin-bottom: 4px; }
+        .meta-info { font-size: 12px; color: #94a3b8; margin-bottom: 16px; display: flex; justify-content: space-between;}
+        .grid { display: flex; justify-content: space-between; margin-bottom: 16px; gap: 8px;}
+        .box { background: #0f172a; padding: 12px 8px; border-radius: 10px; text-align: center; flex: 1; border: 1px solid #334155;}
+        .box-label { font-size: 11px; color: #94a3b8; margin-bottom: 4px; text-transform: uppercase;}
+        .prob { color: #10b981; font-weight: 800; font-size: 17px;}
+        .value-bet { background: rgba(16, 185, 129, 0.1); border-radius: 10px; padding: 12px; font-size: 13px; line-height: 1.5; border: 1px solid rgba(16, 185, 129, 0.2);}
+        .edge { color: #10b981; font-weight: 800; float: right; font-size: 15px;}
+    </style>
+</head>
+<body>
+    <div class="stx-header">
+        <h1 class="stx-title">⚡ STX OMNI-MATRIX</h1>
+        <span style="font-size: 12px; color: #10b981;">Scanner Live Sécurisé</span>
+    </div>
+
+    {% for match in matches %}
+    <div class="card">
+        <div class="match-title">{{ match.home }} vs {{ match.away }}</div>
+        <div class="meta-info">
+            <span>{{ match.league }}</span>
+            <span style="color:#38bdf8;">Consensus IA: {{ match.ai_consensus }}</span>
+        </div>
+
+        <div class="grid">
+            <div class="box">
+                <div class="box-label">Victoire 1</div>
+                <div class="prob">{{ match.prob_1 }}%</div>
+            </div>
+            <div class="box">
+                <div class="box-label">Nul (X)</div>
+                <div class="prob">{{ match.prob_x }}%</div>
+            </div>
+            <div class="box">
+                <div class="box-label">Victoire 2</div>
+                <div class="prob">{{ match.prob_2 }}%</div>
+            </div>
+        </div>
+
+        <div class="value-bet">
+            <div style="margin-bottom: 6px;">🎯 <b>Value Bet (+EV) Détecté</b> <span class="edge">+{{ match.ev_edge }}% Edge</span></div>
+            Marché cible : <b>{{ match.market }}</b><br>
+            <span style="color:#94a3b8;">Cote 1xBet: <b style="color:#f8fafc;">{{ match.xbet_odd }}</b> | Fair (Pinnacle): {{ match.fair_odd }}</span>
+        </div>
+    </div>
+    {% endfor %}
+
+    <script>
+        window.Telegram.WebApp.ready();
+        window.Telegram.WebApp.expand();
+    </script>
+</body>
+</html>
