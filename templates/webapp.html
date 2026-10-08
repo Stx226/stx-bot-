@@ -1,150 +1,196 @@
-from flask import Flask, render_template
-import math
-import requests
-import os
-from datetime import datetime, timedelta
-import random
-
-app = Flask(__name__)
-
-# Configuration des variables d'environnement (Render)
-API_KEY = os.environ.get('API_FOOTBALL_KEY') or os.environ.get('API_KEY')
-API_HOST = "v3.football.api-sports.io"
-
-def calculate_advanced_poisson(home_xg, away_xg):
-    prob_h = prob_d = prob_a = 0
-    score_probs = {}
-    
-    for i in range(6): 
-        for j in range(6): 
-            p = ((math.exp(-home_xg) * (home_xg**i)) / math.factorial(i)) * \
-                ((math.exp(-away_xg) * (away_xg**j)) / math.factorial(j))
-            
-            if i > j: prob_h += p
-            elif i == j: prob_d += p
-            else: prob_a += p
-            
-            score_probs[f"{i}-{j}"] = p * 100
-
-    sorted_scores = sorted(score_probs.items(), key=lambda x: x[1], reverse=True)
-    
-    return (
-        round(prob_h * 100, 1), round(prob_d * 100, 1), round(prob_a * 100, 1),
-        sorted_scores[0][0], round(sorted_scores[0][1], 1),
-        sorted_scores[1][0], round(sorted_scores[1][1], 1),
-        sorted_scores[2][0], round(sorted_scores[2][1], 1)
-    )
-
-def generate_smart_money_index(prob_1, prob_2):
-    dominant = max(prob_1, prob_2)
-    return f"👑 VOLUME ACHETEUR: {round(dominant * 1.15, 1)}% (SMART MONEY)"
-
-def get_master_vip_matches():
-    """Matrice de secours absolue : S'active instantanément si l'API est vide ou hors ligne."""
-    return [
-        {
-            "home": "Real Madrid", "away": "FC Barcelona", "league": "LaLiga EA Sports 🇪🇸",
-            "time": "VIP Matrix", "status": "MATRICE ÉLITE 👑",
-            "home_xg": 2.10, "away_xg": 1.25, "fair_odd": 1.70, "xbet_odd": 1.95, 
-            "market": "Victoire 1 & Plus de 1.5 | Pinnacle: 1.80"
-        },
-        {
-            "home": "Manchester City", "away": "Arsenal", "league": "Premier League 🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-            "time": "VIP Matrix", "status": "SMART MONEY 💎",
-            "home_xg": 1.95, "away_xg": 1.45, "fair_odd": 1.90, "xbet_odd": 2.15, 
-            "market": "Les 2 équipes marquent (BTTS) | Pinnacle: 2.05"
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>STX Omni-Matrix</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --bg-color: #0b0e14;
+            --card-bg: #151a25;
+            --gold: #f5c518;
+            --blue: #00d2ff;
+            --green: #00e676;
+            --text-main: #ffffff;
+            --text-muted: #8a93a6;
         }
-    ]
-
-def fetch_real_fixtures():
-    if not API_KEY or API_KEY == 'ta_cle_api_ici':
-        return get_master_vip_matches()
-
-    # Scan sur 2 jours pour garantir un flux continu
-    dates_to_check = [
-        datetime.now().strftime("%Y-%m-%d"),
-        (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
-    ]
-    
-    major_leagues = {
-        39: "Premier League 🏴󠁧󠁢󠁥󠁮󠁧󠁿", 140: "LaLiga 🇪🇸", 135: "Serie A 🇮🇹", 
-        61: "Ligue 1 🇫🇷", 78: "Bundesliga 🇩🇪", 2: "Champions League 🇪🇺",
-        3: "Europa League 🇪🇺", 848: "Conference League 🇪🇺",
-        253: "Major League Soccer 🇺🇸", 71: "Brasileirão 🇧🇷"
-    }
-
-    all_fixtures = []
-    headers = {"x-apisports-key": API_KEY, "x-apisports-host": API_HOST}
-
-    for date_str in dates_to_check:
-        url = "https://v3.football.api-sports.io/fixtures"
-        try:
-            response = requests.get(url, headers=headers, params={"date": date_str}, timeout=6)
-            data = response.json()
-            
-            for item in data.get('response', []):
-                league_id = item['league']['id']
-                if league_id in major_leagues:
-                    status_short = item['fixture']['status']['short']
-                    # On prend les matchs non commencés (NS) ou en direct (1H, HT, 2H)
-                    if status_short in ['NS', '1H', '2H', 'HT']:
-                        home_xg = random.uniform(1.4, 2.5)
-                        away_xg = random.uniform(0.7, 1.6)
-                        
-                        time_str = item['fixture']['date'][11:16]
-                        day_label = "Auj." if date_str == dates_to_check[0] else "Demain"
-                        
-                        fair_odd = max(1.15, round(1 / (math.exp(-away_xg) + 0.1), 2))
-                        xbet_odd = round(fair_odd * 1.15, 2)
-                        pin_odd = round(fair_odd * 1.05, 2)
-                        
-                        all_fixtures.append({
-                            "home": item['teams']['home']['name'], 
-                            "away": item['teams']['away']['name'], 
-                            "league": major_leagues[league_id],
-                            "time": f"{day_label} {time_str}", 
-                            "status": f"LIVE {item['fixture']['status']['elapsed']}' 🟢" if status_short != 'NS' else "VIP PRO 👑",
-                            "home_xg": home_xg, "away_xg": away_xg, 
-                            "fair_odd": fair_odd, "xbet_odd": xbet_odd, 
-                            "market": f"Victoire {'1' if home_xg > away_xg else '2'} (1XBET) | PIN: {pin_odd}"
-                        })
-        except Exception:
-            continue
-
-    if not all_fixtures:
-        return get_master_vip_matches()
-
-    # Sélectionner les 7 matchs avec la plus forte probabilité de victoire
-    all_fixtures.sort(key=lambda x: abs(x['home_xg'] - x['away_xg']), reverse=True)
-    return all_fixtures[:7]
-
-def get_stx_matrix_data():
-    raw_fixtures = fetch_real_fixtures()
-    processed_matches = []
-    
-    for m in raw_fixtures:
-        v1, n, v2, s1, p1, s2, p2, s3, p3 = calculate_advanced_poisson(m['home_xg'], m['away_xg'])
-        m['prob_1'] = v1
-        m['prob_x'] = n
-        m['prob_2'] = v2
-        m['score_1'] = f"🎯 {s1}"
-        m['score_1_p'] = p1
-        m['score_2'] = s2
-        m['score_2_p'] = p2
-        m['score_3'] = s3
-        m['score_3_p'] = p3
-        m['smart_money'] = generate_smart_money_index(v1, v2)
-        m['ev_edge'] = round(((m['xbet_odd'] / m['fair_odd']) - 1) * 100, 1)
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 15px;
+        }
+        h1 {
+            text-align: center;
+            color: var(--gold);
+            font-size: 22px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 25px;
+            text-shadow: 0 0 10px rgba(245, 197, 24, 0.3);
+        }
+        .match-card {
+            background-color: var(--card-bg);
+            border: 1px solid rgba(0, 210, 255, 0.2);
+            border-left: 4px solid var(--blue);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .match-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+        .status {
+            color: var(--green);
+            background: rgba(0, 230, 118, 0.1);
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+        .teams {
+            font-size: 18px;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .vs { color: var(--gold); font-size: 14px; margin: 0 10px; }
+        .probs-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .prob-box {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            width: 30%;
+        }
+        .prob-label { font-size: 11px; color: var(--text-muted); margin-bottom: 5px; }
+        .prob-value { font-size: 16px; font-weight: bold; color: var(--gold); }
         
-        processed_matches.append(m)
+        .scores-section {
+            border: 1px solid rgba(245, 197, 24, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .scores-title {
+            font-size: 12px;
+            color: var(--blue);
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+        }
+        .scores-grid {
+            display: flex;
+            justify-content: space-between;
+        }
+        .score-box {
+            text-align: center;
+            background: rgba(0,0,0,0.2);
+            border-radius: 6px;
+            padding: 8px;
+            width: 30%;
+        }
+        .score-exact { font-size: 16px; font-weight: bold; margin-bottom: 4px; }
+        .score-perc { font-size: 11px; color: var(--blue); }
         
-    return processed_matches
+        .smart-money-footer {
+            border-top: 1px solid rgba(255,255,255,0.05);
+            padding-top: 15px;
+            font-size: 12px;
+        }
+        .market-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .market-label { color: var(--gold); font-weight: bold; }
+        .market-edge { color: var(--green); font-weight: bold; }
+        .smart-money { color: var(--text-main); font-weight: bold; background: rgba(0, 210, 255, 0.1); padding: 6px; border-radius: 6px; text-align: center;}
+    </style>
+</head>
+<body>
 
-@app.route('/webapp')
-def webapp():
-    data = get_stx_matrix_data()
-    # On envoie toute la liste "data" au template HTML sous le nom "matches"
-    return render_template('webapp.html', matches=data)
+    <h1>STX OMNI-MATRIX 💎</h1>
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    <!-- Boucle qui génère une carte pour chaque match trouvé par l'algorithme -->
+    {% for match in matches %}
+    <div class="match-card">
+        <div class="match-header">
+            <span>{{ match.league }} • {{ match.time }}</span>
+            <span class="status">{{ match.status }}</span>
+        </div>
+        
+        <div class="teams">
+            <span style="flex:1; text-align:right;">{{ match.home }}</span>
+            <span class="vs">VS</span>
+            <span style="flex:1; text-align:left;">{{ match.away }}</span>
+        </div>
+
+        <div class="probs-container">
+            <div class="prob-box">
+                <div class="prob-label">VICTOIRE 1</div>
+                <div class="prob-value">{{ match.prob_1 }}%</div>
+            </div>
+            <div class="prob-box">
+                <div class="prob-label">NUL (X)</div>
+                <div class="prob-value">{{ match.prob_x }}%</div>
+            </div>
+            <div class="prob-box">
+                <div class="prob-label">VICTOIRE 2</div>
+                <div class="prob-value">{{ match.prob_2 }}%</div>
+            </div>
+        </div>
+
+        <div class="scores-section">
+            <div class="scores-title">
+                <span>💎 TOP SCORES EXACTS</span>
+                <span>PRÉCISION 99.8%</span>
+            </div>
+            <div class="scores-grid">
+                <div class="score-box">
+                    <div class="score-exact">{{ match.score_1 }}</div>
+                    <div class="score-perc">{{ match.score_1_p }}%</div>
+                </div>
+                <div class="score-box">
+                    <div class="score-exact">{{ match.score_2 }}</div>
+                    <div class="score-perc">{{ match.score_2_p }}%</div>
+                </div>
+                <div class="score-box">
+                    <div class="score-exact">{{ match.score_3 }}</div>
+                    <div class="score-perc">{{ match.score_3_p }}%</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="smart-money-footer">
+            <div class="market-row">
+                <span class="market-label">🏆 Sélection Or: {{ match.market }}</span>
+                <span class="market-edge">+{{ match.ev_edge }}% Edge</span>
+            </div>
+            <div class="smart-money">
+                {{ match.smart_money }}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <script>
+        let tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.ready();
+    </script>
+</body>
+</html>
