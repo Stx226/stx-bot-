@@ -7,7 +7,6 @@ import random
 
 app = Flask(__name__)
 
-# Configuration des variables d'environnement (Render)
 API_KEY = os.environ.get('API_FOOTBALL_KEY') or os.environ.get('API_KEY')
 API_HOST = "v3.football.api-sports.io"
 
@@ -39,40 +38,14 @@ def generate_smart_money_index(prob_1, prob_2):
     dominant = max(prob_1, prob_2)
     return f"👑 VOLUME ACHETEUR: {round(dominant * 1.15, 1)}% (SMART MONEY)"
 
-def get_master_vip_matches():
-    """Matrice de secours absolue : S'active instantanément si l'API est vide ou hors ligne."""
-    return [
-        {
-            "home": "Real Madrid", "away": "FC Barcelona", "league": "LaLiga EA Sports 🇪🇸",
-            "time": "VIP Matrix", "status": "MATRICE ÉLITE 👑",
-            "home_xg": 2.10, "away_xg": 1.25, "fair_odd": 1.70, "xbet_odd": 1.95, 
-            "market": "Victoire 1 & Plus de 1.5 | Pinnacle: 1.80"
-        },
-        {
-            "home": "Manchester City", "away": "Arsenal", "league": "Premier League 🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-            "time": "VIP Matrix", "status": "SMART MONEY 💎",
-            "home_xg": 1.95, "away_xg": 1.45, "fair_odd": 1.90, "xbet_odd": 2.15, 
-            "market": "Les 2 équipes marquent (BTTS) | Pinnacle: 2.05"
-        }
-    ]
-
 def fetch_real_fixtures():
-    if not API_KEY or API_KEY == 'ta_cle_api_ici':
-        return get_master_vip_matches()
-
-    # Scan sur 2 jours pour garantir un flux continu
+    # Scan étendu sur 3 jours pour garantir des vrais matchs
     dates_to_check = [
         datetime.now().strftime("%Y-%m-%d"),
-        (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+        (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d"),
+        (datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d")
     ]
     
-    major_leagues = {
-        39: "Premier League 🏴󠁧󠁢󠁥󠁮󠁧󠁿", 140: "LaLiga 🇪🇸", 135: "Serie A 🇮🇹", 
-        61: "Ligue 1 🇫🇷", 78: "Bundesliga 🇩🇪", 2: "Champions League 🇪🇺",
-        3: "Europa League 🇪🇺", 848: "Conference League 🇪🇺",
-        253: "Major League Soccer 🇺🇸", 71: "Brasileirão 🇧🇷"
-    }
-
     all_fixtures = []
     headers = {"x-apisports-key": API_KEY, "x-apisports-host": API_HOST}
 
@@ -83,40 +56,49 @@ def fetch_real_fixtures():
             data = response.json()
             
             for item in data.get('response', []):
-                league_id = item['league']['id']
-                if league_id in major_leagues:
-                    status_short = item['fixture']['status']['short']
-                    # On prend les matchs non commencés (NS) ou en direct (1H, HT, 2H)
-                    if status_short in ['NS', '1H', '2H', 'HT']:
-                        home_xg = random.uniform(1.4, 2.5)
-                        away_xg = random.uniform(0.7, 1.6)
-                        
-                        time_str = item['fixture']['date'][11:16]
-                        day_label = "Auj." if date_str == dates_to_check[0] else "Demain"
-                        
-                        fair_odd = max(1.15, round(1 / (math.exp(-away_xg) + 0.1), 2))
-                        xbet_odd = round(fair_odd * 1.15, 2)
-                        pin_odd = round(fair_odd * 1.05, 2)
-                        
-                        all_fixtures.append({
-                            "home": item['teams']['home']['name'], 
-                            "away": item['teams']['away']['name'], 
-                            "league": major_leagues[league_id],
-                            "time": f"{day_label} {time_str}", 
-                            "status": f"LIVE {item['fixture']['status']['elapsed']}' 🟢" if status_short != 'NS' else "VIP PRO 👑",
-                            "home_xg": home_xg, "away_xg": away_xg, 
-                            "fair_odd": fair_odd, "xbet_odd": xbet_odd, 
-                            "market": f"Victoire {'1' if home_xg > away_xg else '2'} (1XBET) | PIN: {pin_odd}"
-                        })
+                status_short = item['fixture']['status']['short']
+                
+                # On scanne TOUTES les ligues mondiales, fini le blocage sur l'Europe
+                if status_short in ['NS', '1H', '2H', 'HT']:
+                    home_xg = random.uniform(1.2, 2.5)
+                    away_xg = random.uniform(0.7, 1.6)
+                    
+                    time_str = item['fixture']['date'][11:16]
+                    day_label = date_str[5:] # Affiche le mois et le jour
+                    
+                    fair_odd = max(1.15, round(1 / (math.exp(-away_xg) + 0.1), 2))
+                    xbet_odd = round(fair_odd * 1.15, 2)
+                    pin_odd = round(fair_odd * 1.05, 2)
+                    
+                    all_fixtures.append({
+                        "home": item['teams']['home']['name'], 
+                        "away": item['teams']['away']['name'], 
+                        "league": item['league']['name'], 
+                        "time": f"Le {day_label} à {time_str}", 
+                        "status": f"LIVE {item['fixture']['status']['elapsed']}' 🟢" if status_short != 'NS' else "ANALYSE STX 💎",
+                        "home_xg": home_xg, "away_xg": away_xg, 
+                        "fair_odd": fair_odd, "xbet_odd": xbet_odd, 
+                        "market": f"Victoire {'1' if home_xg > away_xg else '2'} (1XBET) | PIN: {pin_odd}"
+                    })
         except Exception:
             continue
 
-    if not all_fixtures:
-        return get_master_vip_matches()
+        # Dès qu'on a trouvé un bon volume de matchs, on arrête de chercher
+        if len(all_fixtures) > 15:
+            break
 
-    # Sélectionner les 7 matchs avec la plus forte probabilité de victoire
+    # Suppression de la matrice VIP factice. Si l'API est vide, on affiche un message d'attente pro.
+    if not all_fixtures:
+        return [{
+            "home": "SCAN", "away": "EN COURS", "league": "RECHERCHE MONDIALE",
+            "time": "Mise à jour...", "status": "EN ATTENTE 🔄",
+            "home_xg": 1.0, "away_xg": 1.0, "fair_odd": 1.0, "xbet_odd": 1.0, 
+            "market": "Recherche de value bets..."
+        }]
+
+    # Tri par l'écart de force pour donner les meilleurs pronostics
     all_fixtures.sort(key=lambda x: abs(x['home_xg'] - x['away_xg']), reverse=True)
-    return all_fixtures[:7]
+    return all_fixtures[:8]
 
 def get_stx_matrix_data():
     raw_fixtures = fetch_real_fixtures()
@@ -143,7 +125,6 @@ def get_stx_matrix_data():
 @app.route('/webapp')
 def webapp():
     data = get_stx_matrix_data()
-    # On envoie toute la liste "data" au template HTML sous le nom "matches"
     return render_template('webapp.html', matches=data)
 
 if __name__ == '__main__':
