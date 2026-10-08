@@ -2,144 +2,162 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>STX Omni-Matrix</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
-            --bg-color: #0b0e14;
-            --card-bg: #151a25;
-            --gold: #f5c518;
-            --blue: #00d2ff;
-            --green: #00e676;
-            --text-main: #ffffff;
-            --text-muted: #8a93a6;
+            --bg-dark: #0f172a;
+            --card-bg: #1e293b;
+            --accent-blue: #0ea5e9;
+            --accent-gold: #fbbf24;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --success-green: #10b981;
         }
         body {
-            background-color: var(--bg-color);
+            background-color: var(--bg-dark);
             color: var(--text-main);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, system-ui, sans-serif;
             margin: 0;
             padding: 15px;
         }
-        h1 {
+        .header-title {
             text-align: center;
-            color: var(--gold);
-            font-size: 22px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 25px;
-            text-shadow: 0 0 10px rgba(245, 197, 24, 0.3);
+            color: var(--accent-gold);
+            font-size: 20px;
+            font-weight: 800;
+            margin-bottom: 20px;
+            letter-spacing: 1px;
         }
         .match-card {
-            background-color: var(--card-bg);
-            border: 1px solid rgba(0, 210, 255, 0.2);
-            border-left: 4px solid var(--blue);
+            background: var(--card-bg);
             border-radius: 12px;
-            padding: 15px;
+            padding: 16px;
             margin-bottom: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            border-left: 4px solid var(--accent-blue);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         }
-        .match-header {
+        .league-badge {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            font-size: 12px;
-            color: var(--text-muted);
-            margin-bottom: 15px;
-            text-transform: uppercase;
-            font-weight: bold;
         }
-        .status {
-            color: var(--green);
-            background: rgba(0, 230, 118, 0.1);
-            padding: 4px 8px;
-            border-radius: 6px;
+        .status-badge {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success-green);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: bold;
         }
         .teams {
             font-size: 18px;
-            font-weight: 800;
+            font-weight: bold;
             text-align: center;
-            margin-bottom: 20px;
+            margin: 15px 0;
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
+            gap: 10px;
         }
-        .vs { color: var(--gold); font-size: 14px; margin: 0 10px; }
-        .probs-container {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 20px;
+        .vs {
+            color: var(--accent-gold);
+            font-size: 14px;
         }
-        .prob-box {
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 8px;
-            padding: 10px;
-            text-align: center;
-            width: 30%;
-        }
-        .prob-label { font-size: 11px; color: var(--text-muted); margin-bottom: 5px; }
-        .prob-value { font-size: 16px; font-weight: bold; color: var(--gold); }
-        
-        .scores-section {
-            border: 1px solid rgba(245, 197, 24, 0.2);
-            border-radius: 10px;
-            padding: 15px;
+        .prob-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
             margin-bottom: 15px;
         }
-        .scores-title {
-            font-size: 12px;
-            color: var(--blue);
-            margin-bottom: 10px;
+        .prob-box {
+            background: rgba(15, 23, 42, 0.6);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .prob-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        .prob-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: var(--accent-gold);
+        }
+        .score-section {
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding-top: 15px;
+        }
+        .score-header {
             display: flex;
             justify-content: space-between;
+            font-size: 12px;
+            color: var(--accent-blue);
+            margin-bottom: 10px;
             font-weight: bold;
         }
-        .scores-grid {
+        .score-grid {
+            display: flex;
+            justify-content: space-between;
+            text-align: center;
+        }
+        .score-item {
+            flex: 1;
+        }
+        .score-val {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .score-prob {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+        .smart-money {
+            margin-top: 15px;
+            background: rgba(15, 23, 42, 0.8);
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            text-align: center;
+            color: var(--text-main);
+            border: 1px solid rgba(251, 191, 36, 0.2);
+        }
+        .market-selection {
+            margin-top: 10px;
+            font-size: 12px;
             display: flex;
             justify-content: space-between;
         }
-        .score-box {
-            text-align: center;
-            background: rgba(0,0,0,0.2);
-            border-radius: 6px;
-            padding: 8px;
-            width: 30%;
+        .edge-positive {
+            color: var(--success-green);
+            font-weight: bold;
         }
-        .score-exact { font-size: 16px; font-weight: bold; margin-bottom: 4px; }
-        .score-perc { font-size: 11px; color: var(--blue); }
-        
-        .smart-money-footer {
-            border-top: 1px solid rgba(255,255,255,0.05);
-            padding-top: 15px;
-            font-size: 12px;
-        }
-        .market-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
-        .market-label { color: var(--gold); font-weight: bold; }
-        .market-edge { color: var(--green); font-weight: bold; }
-        .smart-money { color: var(--text-main); font-weight: bold; background: rgba(0, 210, 255, 0.1); padding: 6px; border-radius: 6px; text-align: center;}
     </style>
 </head>
 <body>
+    <div class="header-title">STX OMNI-MATRIX 💎</div>
 
-    <h1>STX OMNI-MATRIX 💎</h1>
-
-    <!-- Boucle qui génère une carte pour chaque match trouvé par l'algorithme -->
     {% for match in matches %}
     <div class="match-card">
-        <div class="match-header">
+        <div class="league-badge">
             <span>{{ match.league }} • {{ match.time }}</span>
-            <span class="status">{{ match.status }}</span>
+            <span class="status-badge">{{ match.status }}</span>
         </div>
         
         <div class="teams">
-            <span style="flex:1; text-align:right;">{{ match.home }}</span>
+            <span>{{ match.home }}</span>
             <span class="vs">VS</span>
-            <span style="flex:1; text-align:left;">{{ match.away }}</span>
+            <span>{{ match.away }}</span>
         </div>
 
-        <div class="probs-container">
+        <div class="prob-grid">
             <div class="prob-box">
                 <div class="prob-label">VICTOIRE 1</div>
                 <div class="prob-value">{{ match.prob_1 }}%</div>
@@ -154,43 +172,41 @@
             </div>
         </div>
 
-        <div class="scores-section">
-            <div class="scores-title">
+        <div class="score-section">
+            <div class="score-header">
                 <span>💎 TOP SCORES EXACTS</span>
                 <span>PRÉCISION 99.8%</span>
             </div>
-            <div class="scores-grid">
-                <div class="score-box">
-                    <div class="score-exact">{{ match.score_1 }}</div>
-                    <div class="score-perc">{{ match.score_1_p }}%</div>
+            <div class="score-grid">
+                <div class="score-item">
+                    <div class="score-val">{{ match.score_1 }}</div>
+                    <div class="score-prob">{{ match.score_1_p }}%</div>
                 </div>
-                <div class="score-box">
-                    <div class="score-exact">{{ match.score_2 }}</div>
-                    <div class="score-perc">{{ match.score_2_p }}%</div>
+                <div class="score-item">
+                    <div class="score-val">{{ match.score_2 }}</div>
+                    <div class="score-prob">{{ match.score_2_p }}%</div>
                 </div>
-                <div class="score-box">
-                    <div class="score-exact">{{ match.score_3 }}</div>
-                    <div class="score-perc">{{ match.score_3_p }}%</div>
+                <div class="score-item">
+                    <div class="score-val">{{ match.score_3 }}</div>
+                    <div class="score-prob">{{ match.score_3_p }}%</div>
                 </div>
             </div>
         </div>
 
-        <div class="smart-money-footer">
-            <div class="market-row">
-                <span class="market-label">🏆 Sélection Or: {{ match.market }}</span>
-                <span class="market-edge">+{{ match.ev_edge }}% Edge</span>
-            </div>
-            <div class="smart-money">
-                {{ match.smart_money }}
-            </div>
+        <div class="market-selection">
+            <span>🏆 Sélection Or: {{ match.market }}</span>
+            <span class="edge-positive">+{{ match.ev_edge }}% Edge</span>
+        </div>
+
+        <div class="smart-money">
+            {{ match.smart_money }}
         </div>
     </div>
     {% endfor %}
 
     <script>
-        let tg = window.Telegram.WebApp;
-        tg.expand();
-        tg.ready();
+        window.Telegram.WebApp.ready();
+        window.Telegram.WebApp.expand();
     </script>
 </body>
 </html>
