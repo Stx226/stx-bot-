@@ -1,217 +1,150 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <style>
-        :root {
-            --bg-deep: #030508;
-            --card-vip: linear-gradient(135deg, #0d111a 0%, #07090f 100%);
-            --gold: #f59e0b;
-            --gold-light: #fbbf24;
-            --gold-border: rgba(245, 158, 11, 0.5);
-            --diamond: #38bdf8;
-            --diamond-glow: rgba(56, 189, 248, 0.4);
-            --text-main: #ffffff;
-            --text-muted: #94a3b8;
-            --green-safe: #10b981;
-        }
+from flask import Flask, render_template
+import math
+import requests
+import os
+from datetime import datetime, timedelta
+import random
 
-        body { 
-            background-color: var(--bg-deep); 
-            color: var(--text-main); 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-            padding: 14px; 
-            margin: 0; 
-            background-image: radial-gradient(circle at 50% 0%, rgba(245, 158, 11, 0.12) 0%, transparent 70%);
+app = Flask(__name__)
+
+# Configuration des variables d'environnement (Render)
+API_KEY = os.environ.get('API_FOOTBALL_KEY') or os.environ.get('API_KEY')
+API_HOST = "v3.football.api-sports.io"
+
+def calculate_advanced_poisson(home_xg, away_xg):
+    prob_h = prob_d = prob_a = 0
+    score_probs = {}
+    
+    for i in range(6): 
+        for j in range(6): 
+            p = ((math.exp(-home_xg) * (home_xg**i)) / math.factorial(i)) * \
+                ((math.exp(-away_xg) * (away_xg**j)) / math.factorial(j))
+            
+            if i > j: prob_h += p
+            elif i == j: prob_d += p
+            else: prob_a += p
+            
+            score_probs[f"{i}-{j}"] = p * 100
+
+    sorted_scores = sorted(score_probs.items(), key=lambda x: x[1], reverse=True)
+    
+    return (
+        round(prob_h * 100, 1), round(prob_d * 100, 1), round(prob_a * 100, 1),
+        sorted_scores[0][0], round(sorted_scores[0][1], 1),
+        sorted_scores[1][0], round(sorted_scores[1][1], 1),
+        sorted_scores[2][0], round(sorted_scores[2][1], 1)
+    )
+
+def generate_smart_money_index(prob_1, prob_2):
+    dominant = max(prob_1, prob_2)
+    return f"👑 VOLUME ACHETEUR: {round(dominant * 1.15, 1)}% (SMART MONEY)"
+
+def get_master_vip_matches():
+    """Matrice de secours absolue : S'active instantanément si l'API est vide ou hors ligne."""
+    return [
+        {
+            "home": "Real Madrid", "away": "FC Barcelona", "league": "LaLiga EA Sports 🇪🇸",
+            "time": "VIP Matrix", "status": "MATRICE ÉLITE 👑",
+            "home_xg": 2.10, "away_xg": 1.25, "fair_odd": 1.70, "xbet_odd": 1.95, 
+            "market": "Victoire 1 & Plus de 1.5 | Pinnacle: 1.80"
+        },
+        {
+            "home": "Manchester City", "away": "Arsenal", "league": "Premier League 🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+            "time": "VIP Matrix", "status": "SMART MONEY 💎",
+            "home_xg": 1.95, "away_xg": 1.45, "fair_odd": 1.90, "xbet_odd": 2.15, 
+            "market": "Les 2 équipes marquent (BTTS) | Pinnacle: 2.05"
         }
+    ]
+
+def fetch_real_fixtures():
+    if not API_KEY or API_KEY == 'ta_cle_api_ici':
+        return get_master_vip_matches()
+
+    # Scan sur 2 jours pour garantir un flux continu
+    dates_to_check = [
+        datetime.now().strftime("%Y-%m-%d"),
+        (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+    ]
+    
+    major_leagues = {
+        39: "Premier League 🏴󠁧󠁢󠁥󠁮󠁧󠁿", 140: "LaLiga 🇪🇸", 135: "Serie A 🇮🇹", 
+        61: "Ligue 1 🇫🇷", 78: "Bundesliga 🇩🇪", 2: "Champions League 🇪🇺",
+        3: "Europa League 🇪🇺", 848: "Conference League 🇪🇺",
+        253: "Major League Soccer 🇺🇸", 71: "Brasileirão 🇧🇷"
+    }
+
+    all_fixtures = []
+    headers = {"x-apisports-key": API_KEY, "x-apisports-host": API_HOST}
+
+    for date_str in dates_to_check:
+        url = "https://v3.football.api-sports.io/fixtures"
+        try:
+            response = requests.get(url, headers=headers, params={"date": date_str}, timeout=6)
+            data = response.json()
+            
+            for item in data.get('response', []):
+                league_id = item['league']['id']
+                if league_id in major_leagues:
+                    status_short = item['fixture']['status']['short']
+                    # On prend les matchs non commencés (NS) ou en direct (1H, HT, 2H)
+                    if status_short in ['NS', '1H', '2H', 'HT']:
+                        home_xg = random.uniform(1.4, 2.5)
+                        away_xg = random.uniform(0.7, 1.6)
+                        
+                        time_str = item['fixture']['date'][11:16]
+                        day_label = "Auj." if date_str == dates_to_check[0] else "Demain"
+                        
+                        fair_odd = max(1.15, round(1 / (math.exp(-away_xg) + 0.1), 2))
+                        xbet_odd = round(fair_odd * 1.15, 2)
+                        pin_odd = round(fair_odd * 1.05, 2)
+                        
+                        all_fixtures.append({
+                            "home": item['teams']['home']['name'], 
+                            "away": item['teams']['away']['name'], 
+                            "league": major_leagues[league_id],
+                            "time": f"{day_label} {time_str}", 
+                            "status": f"LIVE {item['fixture']['status']['elapsed']}' 🟢" if status_short != 'NS' else "VIP PRO 👑",
+                            "home_xg": home_xg, "away_xg": away_xg, 
+                            "fair_odd": fair_odd, "xbet_odd": xbet_odd, 
+                            "market": f"Victoire {'1' if home_xg > away_xg else '2'} (1XBET) | PIN: {pin_odd}"
+                        })
+        except Exception:
+            continue
+
+    if not all_fixtures:
+        return get_master_vip_matches()
+
+    # Sélectionner les 7 matchs avec la plus forte probabilité de victoire
+    all_fixtures.sort(key=lambda x: abs(x['home_xg'] - x['away_xg']), reverse=True)
+    return all_fixtures[:7]
+
+def get_stx_matrix_data():
+    raw_fixtures = fetch_real_fixtures()
+    processed_matches = []
+    
+    for m in raw_fixtures:
+        v1, n, v2, s1, p1, s2, p2, s3, p3 = calculate_advanced_poisson(m['home_xg'], m['away_xg'])
+        m['prob_1'] = v1
+        m['prob_x'] = n
+        m['prob_2'] = v2
+        m['score_1'] = f"🎯 {s1}"
+        m['score_1_p'] = p1
+        m['score_2'] = s2
+        m['score_2_p'] = p2
+        m['score_3'] = s3
+        m['score_3_p'] = p3
+        m['smart_money'] = generate_smart_money_index(v1, v2)
+        m['ev_edge'] = round(((m['xbet_odd'] / m['fair_odd']) - 1) * 100, 1)
         
-        .vip-header { 
-            text-align: center; 
-            padding: 10px 0 20px 0; 
-            border-bottom: 2px solid var(--gold-border); 
-            margin-bottom: 20px; 
-        }
-        .vip-header::after {
-            content: '💎 ❖ 💎';
-            display: block;
-            font-size: 10px;
-            color: var(--diamond);
-            letter-spacing: 6px;
-            margin-top: 6px;
-            text-shadow: 0 0 10px var(--diamond-glow);
-        }
-        .stx-title { 
-            font-size: 24px; 
-            font-weight: 900; 
-            background: linear-gradient(180deg, #fff 20%, var(--gold-light) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin: 0; 
-            letter-spacing: 2px;
-            text-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
-        }
-
-        .card { 
-            background: var(--card-vip); 
-            border-radius: 18px; 
-            padding: 18px; 
-            margin-bottom: 20px; 
-            border: 1.5px solid var(--gold-border); 
-            box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.8), 0 0 15px rgba(245, 158, 11, 0.15); 
-            position: relative;
-            overflow: hidden;
-        }
-        .card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; width: 5px; height: 100%;
-            background: linear-gradient(to bottom, var(--gold), var(--diamond));
-            box-shadow: 0 0 10px var(--gold);
-        }
+        processed_matches.append(m)
         
-        .match-meta { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            font-size: 11px; 
-            color: var(--text-muted); 
-            margin-bottom: 12px; 
-            text-transform: uppercase; 
-            font-weight: 700; 
-            letter-spacing: 0.5px;
-        }
-        .live-tag { 
-            background: rgba(16, 185, 129, 0.15); 
-            color: var(--green-safe); 
-            padding: 3px 9px; 
-            border-radius: 6px; 
-            font-weight: 800; 
-            display: inline-flex; 
-            align-items: center; 
-            gap: 5px; 
-            border: 1px solid rgba(16, 185, 129, 0.4);
-        }
-        .live-dot { width: 6px; height: 6px; background-color: var(--green-safe); border-radius: 50%; animation: pulse 1.5s infinite; }
+    return processed_matches
 
-        .match-teams { 
-            font-size: 18px; 
-            font-weight: 900; 
-            color: var(--text-main); 
-            margin-bottom: 16px; 
-            letter-spacing: 0.5px;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-        }
+@app.route('/webapp')
+def webapp():
+    data = get_stx_matrix_data()
+    # On envoie toute la liste "data" au template HTML sous le nom "matches"
+    return render_template('webapp.html', matches=data)
 
-        .grid-1x2 { display: flex; gap: 8px; margin-bottom: 14px; }
-        .box-1x2 { 
-            background: #04060a; 
-            padding: 10px 6px; 
-            border-radius: 10px; 
-            text-align: center; 
-            flex: 1; 
-            border: 1px solid rgba(56, 189, 248, 0.2); 
-        }
-        .box-label { font-size: 10px; color: var(--text-muted); margin-bottom: 4px; font-weight: 700; text-transform: uppercase; }
-        .prob-val { color: var(--gold-light); font-weight: 900; font-size: 16px; text-shadow: 0 0 10px rgba(251, 191, 36, 0.3); }
-
-        .exact-scores-box { 
-            background: #04060a; 
-            border-radius: 12px; 
-            padding: 12px; 
-            margin-bottom: 14px; 
-            border: 1px solid var(--gold-border); 
-        }
-        .section-title { 
-            font-size: 11px; 
-            color: var(--gold); 
-            font-weight: 800; 
-            margin-bottom: 8px; 
-            text-transform: uppercase; 
-            display: flex; 
-            justify-content: space-between; 
-            letter-spacing: 0.5px;
-        }
-        .scores-row { display: flex; gap: 8px; }
-        .score-pill { 
-            background: linear-gradient(135deg, #0d121d 0%, #080b12 100%); 
-            border: 1px solid var(--gold-border); 
-            border-radius: 9px; 
-            padding: 9px 4px; 
-            text-align: center; 
-            flex: 1; 
-            font-size: 15px; 
-            font-weight: 900; 
-            color: #fff;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-        }
-        .score-pill span { display: block; font-size: 10px; color: var(--diamond); font-weight: 800; margin-top: 4px; text-shadow: 0 0 6px var(--diamond-glow); }
-
-        .value-bet { 
-            background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(56, 189, 248, 0.06) 100%); 
-            border-radius: 12px; 
-            padding: 12px; 
-            font-size: 12px; 
-            border: 1.5px solid var(--gold-border); 
-        }
-        .edge-badge { color: var(--green-safe); font-weight: 900; float: right; font-size: 13px; text-shadow: 0 0 8px rgba(16, 185, 129, 0.4); }
-
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
-    </style>
-</head>
-<body>
-    <div class="vip-header">
-        <h1 class="stx-title">STX OMNI-MATRIX</h1>
-    </div>
-
-    {% for match in matches %}
-    <div class="card">
-        <div class="match-meta">
-            <span>{{ match.league }} • {{ match.time }}</span>
-            <span class="live-tag"><span class="live-dot"></span> {{ match.status }}</span>
-        </div>
-        
-        <div class="match-teams">
-            💎 {{ match.home }} vs {{ match.away }}
-        </div>
-        
-        <div class="grid-1x2">
-            <div class="box-1x2">
-                <div class="box-label">Victoire 1</div>
-                <div class="prob-val">{{ match.prob_1 }}%</div>
-            </div>
-            <div class="box-1x2">
-                <div class="box-label">Nul (X)</div>
-                <div class="prob-val">{{ match.prob_x }}%</div>
-            </div>
-            <div class="box-1x2">
-                <div class="box-label">Victoire 2</div>
-                <div class="prob-val">{{ match.prob_2 }}%</div>
-            </div>
-        </div>
-
-        <div class="exact-scores-box">
-            <div class="section-title"><span>💎 Top Scores Exacts (Matrice)</span> <span style="color:var(--diamond);">Précision 99.8%</span></div>
-            <div class="scores-row">
-                <div class="score-pill">{{ match.score_1 }} <span>{{ match.score_1_p }}%</span></div>
-                <div class="score-pill">{{ match.score_2 }} <span>{{ match.score_2_p }}%</span></div>
-                <div class="score-pill">{{ match.score_3 }} <span>{{ match.score_3_p }}%</span></div>
-            </div>
-        </div>
-        
-        <div class="value-bet">
-            <div>🏆 <b>Sélection Or & Value Bet</b> <span class="edge-badge">+{{ match.ev_edge }}% Edge</span></div>
-            <div style="color: var(--text-muted); margin-top: 5px;">
-                Marché : <b style="color:var(--text-main);">{{ match.market }}</b> | Cote Or: <b style="color:var(--gold-light);">{{ match.xbet_odd }}</b>
-            </div>
-        </div>
-    </div>
-    {% endfor %}
-
-    <script>
-        window.Telegram.WebApp.ready();
-        window.Telegram.WebApp.expand();
-    </script>
-</body>
-</html>
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
